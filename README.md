@@ -15,20 +15,20 @@ Markdown).
 ## How it works
 
 ```
-                 ┌────────────────────┐
+                 ┌─────────────────────┐
                  │  data/collect.py    │  Python + yfinance
                  │  download 5y OHLCV  │
                  └──────────┬──────────┘
                             │ data/raw/stock_data.csv
                             ▼
-                 ┌────────────────────────┐
-                 │ data/engineer_features.R│  R + TTR
-                 │ SMA/EMA/RSI/MACD/BB/ATR │
+                 ┌──────────────────────────┐
+                 │ data/engineer_features.R │  R + TTR
+                 │ SMA/EMA/RSI/MACD/BB/ATR  │
                  │ + next-day Up/Down target│
                  └──────────┬───────────────┘
                             │ data/features/features.csv
                             ▼
-                 ┌────────────────────┐
+                 ┌─────────────────────┐
                  │ data/train_model.py │  Python + XGBoost
                  │ 80/20 chronological │
                  │ train/test split    │
@@ -38,8 +38,8 @@ Markdown).
                  ┌──────────┴──────────┐
                  ▼                     ▼
       ┌─────────────────────┐  ┌─────────────────────┐
-      │  dashboard/app.R      │  │  report/report.Rmd   │
-      │  Shiny live dashboard │  │  R Markdown report    │
+      │  dashboard/app.R    │  │  report/report.Rmd  │
+      │Shiny live dashboard │  │  R Markdown report  │
       └─────────────────────┘  └─────────────────────┘
 ```
 
