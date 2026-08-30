@@ -1,0 +1,178 @@
+---
+title: "Stock Predictor — Model Report"
+subtitle: "Next-day direction prediction from technical indicators (XGBoost)"
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 9)
+
+suppressPackageStartupMessages({
+  library(ggplot2)
+  library(jsonlite)
+  library(dplyr)
+  library(knitr)
+})
+
+features_path <- file.path("..", "data", "features", "features.csv")
+eval_log_path <- file.path("..", "models", "eval_log.json")
+
+if (!file.exists(features_path) || !file.exists(eval_log_path)) {
+  stop("Pipeline outputs not found. Run `python run_pipeline.py` from the project root before rendering this report.")
+}
+
+features <- read.csv(features_path, stringsAsFactors = FALSE)
+features$Date <- as.Date(features$Date)
+features <- features[order(features$Date), ]
+
+eval_log <- fromJSON(eval_log_path)
+```
+
+## Approach
+
+This report summarizes a model that predicts whether a stock's closing
+price will be **higher tomorrow than it closed today** — a binary
+up/down classification, not a price forecast.
+
+**Pipeline:**
+
+1. **Data collection (Python / yfinance):** `r nrow(features)` daily bars (after feature engineering) are downloaded for the ticker (5 years by default).
+2. **Feature engineering (R / TTR):** SMA(20, 50), EMA(20), RSI(14), MACD(12, 26, 9) with signal & histogram, Bollinger Bands(20, 2σ), and ATR(14) are computed from the raw OHLCV series. The target label is `1` if the *next* trading day's close is higher than today's close, else `0`. Rows with indicator warm-up `NA`s are dropped.
+3. **Model training (Python / XGBoost):** a gradient-boosted tree classifier is trained on a **chronological** 80/20 split (train on the earlier 80% of history, test on the most recent 20%) so no future information leaks into training — a random shuffle would be inappropriate for time-series data.
+4. **Serving:** the trained model is exposed through a Shiny dashboard for live predictions and this R Markdown report for offline evaluation.
+
+## Data Summary
+
+```{r data-summary}
+data.frame(
+  Metric = c("Total rows (post feature engineering)", "Date range", "Up days", "Down days", "Up-day %"),
+  Value = c(
+    nrow(features),
+    paste(min(features$Date), "to", max(features$Date)),
+    sum(features$Target == 1),
+    sum(features$Target == 0),
+    sprintf("%.1f%%", 100 * mean(features$Target))
+  )
+) %>% kable(col.names = c("Metric", "Value"))
+```
+
+## Model Performance
+
+```{r perf-summary}
+data.frame(
+  Metric = c("Training rows", "Test rows", "Train date range", "Test date range",
+             "Test accuracy", "Majority-class baseline accuracy", "Uplift over baseline"),
+  Value = c(
+    eval_log$n_train,
+    eval_log$n_test,
+    paste(eval_log$train_date_range, collapse = " to "),
+    paste(eval_log$test_date_range, collapse = " to "),
+    sprintf("%.2f%%", eval_log$accuracy * 100),
+    sprintf("%.2f%%", eval_log$baseline_accuracy * 100),
+    sprintf("%+.2f pp", 100 * (eval_log$accuracy - eval_log$baseline_accuracy))
+  )
+) %>% kable(col.names = c("Metric", "Value"))
+```
+
+The **majority-class baseline** always predicts the most common label seen
+in training (usually "Up", since equities drift upward more often than
+not). A useful model should beat this baseline — if it doesn't, the
+technical indicators aren't adding predictive signal beyond the market's
+natural upward drift.
+
+### Confusion Matrix
+
+```{r confusion-matrix}
+cm <- eval_log$confusion_matrix$matrix
+rownames(cm) <- paste("Actual", eval_log$confusion_matrix$labels)
+colnames(cm) <- paste("Predicted", eval_log$confusion_matrix$labels)
+kable(cm)
+```
+
+### Classification Report
+
+```{r classification-report}
+rep <- eval_log$classification_report
+rows <- c("Down", "Up")
+report_df <- do.call(rbind, lapply(rows, function(r) {
+  data.frame(
+    Class = r,
+    Precision = sprintf("%.3f", rep[[r]]$precision),
+    Recall = sprintf("%.3f", rep[[r]]$recall),
+    F1 = sprintf("%.3f", rep[[r]][["f1-score"]]),
+    Support = rep[[r]]$support
+  )
+}))
+kable(report_df)
+```
+
+### Feature Importance
+
+```{r feature-importance, fig.height=5}
+fi <- eval_log$feature_importance %>%
+  arrange(desc(importance)) %>%
+  head(12)
+fi$feature <- factor(fi$feature, levels = rev(fi$feature))
+
+ggplot(fi, aes(x = feature, y = importance)) +
+  geom_col(fill = "#2563eb") +
+  coord_flip() +
+  labs(x = NULL, y = "Importance (gain)", title = "Top 12 Features by Importance") +
+  theme_minimal(base_size = 13)
+```
+
+## Price & Indicator Plots
+
+```{r price-plot, fig.height=4.5}
+ggplot(features, aes(x = Date)) +
+  geom_line(aes(y = Close, color = "Close")) +
+  geom_line(aes(y = SMA_20, color = "SMA 20")) +
+  geom_line(aes(y = SMA_50, color = "SMA 50")) +
+  scale_color_manual(values = c("Close" = "#1f2937", "SMA 20" = "#2563eb", "SMA 50" = "#f59e0b")) +
+  labs(title = "Closing Price with Moving Averages", x = NULL, y = "Price ($)", color = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "top")
+```
+
+```{r rsi-plot, fig.height=3}
+ggplot(features, aes(x = Date, y = RSI_14)) +
+  geom_line(color = "#7c3aed") +
+  geom_hline(yintercept = c(30, 70), linetype = "dashed", color = "#9ca3af") +
+  labs(title = "RSI (14)", x = NULL, y = "RSI") +
+  theme_minimal(base_size = 13)
+```
+
+```{r macd-plot, fig.height=3.5}
+ggplot(features, aes(x = Date)) +
+  geom_col(aes(y = MACD_hist), fill = "#a5b4fc") +
+  geom_line(aes(y = MACD, color = "MACD")) +
+  geom_line(aes(y = MACD_signal, color = "Signal")) +
+  scale_color_manual(values = c("MACD" = "#2563eb", "Signal" = "#dc2626")) +
+  labs(title = "MACD (12, 26, 9)", x = NULL, y = NULL, color = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "top")
+```
+
+## Limitations & Disclaimer
+
+- This model predicts **direction only**, not magnitude — a 0.1% up day
+  and a 5% up day are labeled identically.
+- Technical indicators are lagging by construction; predictive power over
+  a pure drift baseline is often small and can vary a lot by ticker and
+  regime.
+- Markets are noisy and non-stationary: a model that performed well on
+  historical test data is not guaranteed to perform well going forward.
+- **This project is for educational purposes only and does not constitute
+  financial advice.** Do not use it to make real trading decisions.
+
+---
+
+*Generated automatically from `data/features/features.csv` and
+`models/eval_log.json` — re-run `python run_pipeline.py` and re-knit this
+report to refresh with new data.*
